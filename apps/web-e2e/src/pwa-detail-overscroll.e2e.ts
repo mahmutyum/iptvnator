@@ -9,7 +9,7 @@ import {
     MOCK_SERVER,
 } from './xtream-series-playback.fixture';
 
-test('@xtream @pwa standalone series details stop vertical overscroll', async ({
+test('@xtream @pwa standalone workspace and series details stop vertical overscroll', async ({
     browserName,
     baseURL,
     request,
@@ -33,7 +33,20 @@ test('@xtream @pwa standalone series details stop vertical overscroll', async ({
                 )
             )
             .toBe(true);
+        await expect(page).toHaveURL(/\/workspace\/dashboard$/);
+        await expect(page.locator('main.workspace-content')).toHaveCSS(
+            'overscroll-behavior-y',
+            'none'
+        );
+        await expect(page.locator('html')).toHaveCSS(
+            'overscroll-behavior-y',
+            'none'
+        );
         await addXtreamPortal(page);
+        await page.goto(page.url().replace(/\/vod.*$/, '/series'));
+        await expect(page).toHaveURL(/\/series$/);
+        const grid = page.locator('app-category-content-view app-grid-list');
+        await expect(grid).toHaveCSS('overscroll-behavior-y', 'none');
         const response = await request.get(`${MOCK_SERVER}/player_api.php`, {
             params: {
                 username: DEFAULT_USERNAME,
@@ -41,20 +54,12 @@ test('@xtream @pwa standalone series details stop vertical overscroll', async ({
                 action: 'get_series',
             },
         });
-        expect(response.ok()).toBe(true);
         const [series] = (await response.json()) as {
-            category_id: number;
+            category_id: string;
             series_id: number;
         }[];
-        if (!series) throw new Error('Missing Xtream series fixture');
-        const seriesLink = page.getByRole('link', {
-            name: 'Series',
-            exact: true,
-        });
-        const seriesUrl = await seriesLink.getAttribute('href');
-        if (!seriesUrl) throw new Error('Missing Xtream series route');
         await page.goto(
-            `${seriesUrl}/${series.category_id}/${series.series_id}`
+            `${page.url()}/${series.category_id}/${series.series_id}`
         );
         const shell = page.locator('app-portal-detail-shell');
         await expect(shell.getByRole('heading', { level: 1 })).toBeVisible();
@@ -62,4 +67,17 @@ test('@xtream @pwa standalone series details stop vertical overscroll', async ({
     } finally {
         await context.close();
     }
+});
+
+test('@web browser dashboard keeps default overscroll', async ({ page }) => {
+    await page.goto('/');
+    await expect(page).toHaveURL(/\/workspace\/dashboard$/);
+    await expect(page.locator('main.workspace-content')).toHaveCSS(
+        'overscroll-behavior-y',
+        'auto'
+    );
+    await expect(page.locator('html')).toHaveCSS(
+        'overscroll-behavior-y',
+        'auto'
+    );
 });
